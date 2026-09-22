@@ -1,10 +1,10 @@
 'use client'
 
-import { useEffect, useState, FormEvent } from 'react'
+import { useEffect, useState, useRef, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
-import { CheckCircle2, AlertCircle } from 'lucide-react'
+import { CheckCircle2, AlertCircle, Camera, X, Image as ImageIcon } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
-import { inserirLancamento } from '@/lib/supabase'
+import { inserirLancamento, uploadComprovante } from '@/lib/supabase'
 import {
   LancamentoForm,
   TipoLancamento,
@@ -36,10 +36,20 @@ export default function LancarPage() {
   const [form, setForm] = useState<LancamentoForm>(FORM_VAZIO)
   const [estado, setEstado] = useState<EstadoEnvio>('idle')
   const [erroMsg, setErroMsg] = useState('')
+  const [arquivo, setArquivo] = useState<File | null>(null)
+  const [preview, setPreview] = useState<string | null>(null)
+  const inputFileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!carregando && !autenticado) router.replace('/login')
   }, [autenticado, carregando, router])
+
+  // Limpa URL de preview ao desmontar
+  useEffect(() => {
+    return () => {
+      if (preview) URL.revokeObjectURL(preview)
+    }
+  }, [preview])
 
   if (carregando || !autenticado) return null
 
@@ -51,12 +61,22 @@ export default function LancarPage() {
     const categoriaDefault: CategoriaLancamento =
       tipo === 'Despesa' ? 'Alimentação' : 'Salário'
     const statusDefault = tipo === 'Despesa' ? 'Pago' : 'Recebido'
-    setForm((f) => ({
-      ...f,
-      tipo,
-      categoria: categoriaDefault,
-      status: statusDefault,
-    }))
+    setForm((f) => ({ ...f, tipo, categoria: categoriaDefault, status: statusDefault }))
+  }
+
+  function handleArquivo(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setArquivo(file)
+    if (preview) URL.revokeObjectURL(preview)
+    setPreview(URL.createObjectURL(file))
+  }
+
+  function removerArquivo() {
+    setArquivo(null)
+    if (preview) URL.revokeObjectURL(preview)
+    setPreview(null)
+    if (inputFileRef.current) inputFileRef.current.value = ''
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -67,7 +87,8 @@ export default function LancarPage() {
     setErroMsg('')
 
     try {
-      await inserirLancamento({
+      // 1. Salva o lançamento primeiro para obter o ID
+      const lancamento = await inserirLancamento({
         data: form.data,
         descricao: form.descricao.trim(),
         tipo: form.tipo,
@@ -78,10 +99,18 @@ export default function LancarPage() {
         observacao: form.observacao.trim() || undefined,
       })
 
+      // 2. Se tiver comprovante, faz upload e atualiza o lançamento
+      if (arquivo) {
+        const url = await uploadComprovante(arquivo, lancamento.id)
+        const { atualizarLancamento } = await import('@/lib/supabase')
+        await atualizarLancamento(lancamento.id, { comprovante_url: url })
+      }
+
       setEstado('sucesso')
-      // Reset após 1.5s e volta para dashboard
       setTimeout(() => {
         setForm({ ...FORM_VAZIO, data: dataHoje() })
+        setArquivo(null)
+        setPreview(null)
         setEstado('idle')
         router.push('/')
       }, 1500)
@@ -92,9 +121,7 @@ export default function LancarPage() {
     }
   }
 
-  const categorias =
-    form.tipo === 'Despesa' ? CATEGORIAS_DESPESA : CATEGORIAS_RECEITA
-
+  const categorias = form.tipo === 'Despesa' ? CATEGORIAS_DESPESA : CATEGORIAS_RECEITA
   const isEnviando = estado === 'enviando'
 
   return (
@@ -105,7 +132,6 @@ export default function LancarPage() {
         <p className="text-indigo-200 text-sm mt-0.5">Registre uma entrada ou saída</p>
       </div>
 
-      {/* Feedback de sucesso */}
       {estado === 'sucesso' && (
         <div className="mx-4 mt-4 bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-center gap-3">
           <CheckCircle2 className="text-emerald-600 flex-shrink-0" size={22} />
@@ -113,7 +139,6 @@ export default function LancarPage() {
         </div>
       )}
 
-      {/* Feedback de erro */}
       {estado === 'erro' && (
         <div className="mx-4 mt-4 bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3">
           <AlertCircle className="text-red-500 flex-shrink-0" size={22} />
@@ -122,7 +147,7 @@ export default function LancarPage() {
       )}
 
       <form onSubmit={handleSubmit} className="px-4 pt-5 space-y-4">
-        {/* Tipo: Receita / Despesa */}
+        {/* Tipo */}
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
           <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
             Tipo
@@ -147,7 +172,7 @@ export default function LancarPage() {
           </div>
         </div>
 
-        {/* Valor — campo em destaque */}
+        {/* Valor */}
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
           <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
             Valor (R$)
@@ -186,7 +211,6 @@ export default function LancarPage() {
               className="w-full px-4 py-3 border border-gray-200 rounded-xl text-gray-900 text-base focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             />
           </div>
-
           <div>
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
               Data
@@ -213,9 +237,7 @@ export default function LancarPage() {
               className="w-full px-4 py-3 border border-gray-200 rounded-xl text-gray-900 text-base bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             >
               {categorias.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
+                <option key={c} value={c}>{c}</option>
               ))}
             </select>
           </div>
@@ -265,7 +287,7 @@ export default function LancarPage() {
           </div>
         </div>
 
-        {/* Observação (opcional) */}
+        {/* Observação */}
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
           <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
             Observação <span className="normal-case font-normal">(opcional)</span>
@@ -277,6 +299,54 @@ export default function LancarPage() {
             rows={2}
             maxLength={200}
             className="w-full px-4 py-3 border border-gray-200 rounded-xl text-gray-900 text-base focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+          />
+        </div>
+
+        {/* Comprovante */}
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+          <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+            Comprovante <span className="normal-case font-normal">(opcional)</span>
+          </label>
+
+          {/* Preview */}
+          {preview ? (
+            <div className="relative">
+              <img
+                src={preview}
+                alt="Preview do comprovante"
+                className="w-full max-h-48 object-cover rounded-xl border border-gray-200"
+              />
+              <button
+                type="button"
+                onClick={removerArquivo}
+                className="absolute top-2 right-2 bg-white rounded-full p-1 shadow-md border border-gray-200 text-gray-600 hover:text-red-500"
+              >
+                <X size={16} />
+              </button>
+              <p className="text-xs text-gray-400 mt-2 truncate">{arquivo?.name}</p>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => inputFileRef.current?.click()}
+              className="w-full border-2 border-dashed border-gray-200 rounded-xl py-6 flex flex-col items-center gap-2 text-gray-400 hover:border-indigo-300 hover:text-indigo-400 active:bg-indigo-50 transition-all"
+            >
+              <div className="flex items-center gap-3">
+                <Camera size={22} />
+                <ImageIcon size={22} />
+              </div>
+              <span className="text-sm font-medium">Tirar foto ou escolher da galeria</span>
+            </button>
+          )}
+
+          {/* Input file oculto — aceita câmera e galeria no mobile */}
+          <input
+            ref={inputFileRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onChange={handleArquivo}
+            className="hidden"
           />
         </div>
 

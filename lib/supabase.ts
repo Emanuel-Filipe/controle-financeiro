@@ -69,3 +69,45 @@ export async function deletarLancamento(id: string): Promise<void> {
 
   if (error) throw error
 }
+
+// ─── Storage de Comprovantes ─────────────────────────────────────────────────
+
+const BUCKET = 'comprovantes'
+
+export async function uploadComprovante(
+  arquivo: File,
+  lancamentoId: string
+): Promise<string> {
+  const ext = arquivo.name.split('.').pop() ?? 'jpg'
+  const caminho = `${lancamentoId}.${ext}`
+
+  const { error } = await supabase.storage
+    .from(BUCKET)
+    .upload(caminho, arquivo, { upsert: true })
+
+  if (error) throw error
+
+  const { data } = supabase.storage.from(BUCKET).getPublicUrl(caminho)
+  return data.publicUrl
+}
+
+export async function deletarComprovante(url: string): Promise<void> {
+  // Extrai o caminho relativo da URL pública
+  const partes = url.split(`/${BUCKET}/`)
+  if (partes.length < 2) return
+  const caminho = partes[1]
+
+  const { error } = await supabase.storage.from(BUCKET).remove([caminho])
+  if (error) throw error
+}
+
+export async function getLancamentosComComprovante(): Promise<import('./types').Lancamento[]> {
+  const { data, error } = await supabase
+    .from('lancamentos')
+    .select('*')
+    .not('comprovante_url', 'is', null)
+    .order('data', { ascending: false })
+
+  if (error) throw error
+  return data ?? []
+}

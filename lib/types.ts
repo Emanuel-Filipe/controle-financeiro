@@ -36,6 +36,7 @@ export interface Lancamento {
   valor: number
   status: StatusLancamento
   observacao?: string
+  comprovante_url?: string
   created_at?: string
 }
 

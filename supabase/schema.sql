@@ -17,6 +17,9 @@ create table if not exists public.lancamentos (
   created_at    timestamptz default now()
 );
 
+-- Coluna de comprovante (URL do arquivo no Supabase Storage)
+alter table public.lancamentos add column if not exists comprovante_url text;
+
 -- Índices para performance nas consultas por data
 create index if not exists idx_lancamentos_data on public.lancamentos (data);
 create index if not exists idx_lancamentos_tipo on public.lancamentos (tipo);
