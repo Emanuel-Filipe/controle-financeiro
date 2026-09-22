@@ -6,28 +6,16 @@ import { Lancamento } from '@/lib/types'
 import { formatarMoeda, formatarData } from '@/lib/utils'
 
 interface ModalComprovanteProps {
-  aberto: boolean
-  url: string
-  lancamento: Lancamento
-  onFechar: () => void
+  aberto: boolean; url: string; lancamento: Lancamento; onFechar: () => void
 }
 
-export default function ModalComprovante({
-  aberto,
-  url,
-  lancamento,
-  onFechar,
-}: ModalComprovanteProps) {
-  // Fecha com ESC no desktop
+export default function ModalComprovante({ aberto, url, lancamento, onFechar }: ModalComprovanteProps) {
   useEffect(() => {
-    function handleKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') onFechar()
-    }
+    function handleKey(e: KeyboardEvent) { if (e.key === 'Escape') onFechar() }
     if (aberto) document.addEventListener('keydown', handleKey)
     return () => document.removeEventListener('keydown', handleKey)
   }, [aberto, onFechar])
 
-  // Bloqueia scroll do body quando aberto
   useEffect(() => {
     document.body.style.overflow = aberto ? 'hidden' : ''
     return () => { document.body.style.overflow = '' }
@@ -38,71 +26,44 @@ export default function ModalComprovante({
   const ehReceita = lancamento.tipo === 'Receita'
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex flex-col bg-black/90"
-      onClick={onFechar}
-    >
+    <div className="fixed inset-0 z-50 flex flex-col animate-fade-in" style={{ background: 'rgba(0,0,0,0.96)' }} onClick={onFechar}>
       {/* Header */}
-      <div
-        className="flex items-center justify-between px-4 pt-12 pb-3 bg-black/50"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="flex items-center justify-between px-4 pt-12 pb-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }} onClick={(e) => e.stopPropagation()}>
         <div className="flex-1 min-w-0">
-          <p className="text-white font-semibold text-sm truncate">
-            {lancamento.descricao}
-          </p>
-          <p className="text-gray-400 text-xs mt-0.5">
-            {lancamento.categoria} · {formatarData(lancamento.data)} ·{' '}
-            <span className={ehReceita ? 'text-emerald-400' : 'text-red-400'}>
-              {ehReceita ? '+' : '-'} {formatarMoeda(lancamento.valor)}
+          <p className="font-bold text-sm text-white truncate">{lancamento.descricao}</p>
+          <div className="flex items-center gap-2 mt-0.5">
+            <span className="text-xs text-gray-400">{lancamento.categoria}</span>
+            <span className="text-gray-600">·</span>
+            <span className="text-xs text-gray-400">{formatarData(lancamento.data)}</span>
+            <span className="text-gray-600">·</span>
+            <span className="text-xs font-bold" style={{ color: ehReceita ? '#10d98a' : '#ff4d6d' }}>
+              {ehReceita ? '+' : '−'}{formatarMoeda(lancamento.valor)}
             </span>
-          </p>
+          </div>
         </div>
-        <div className="flex items-center gap-3 ml-3">
-          <a
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="p-2 text-gray-300 hover:text-white transition-colors"
-            aria-label="Abrir em nova aba"
-          >
-            <ExternalLink size={20} />
+        <div className="flex items-center gap-1 ml-3">
+          <a href={url} target="_blank" rel="noopener noreferrer"
+            className="p-2.5 rounded-xl transition-all hover:bg-white/10 text-gray-400 hover:text-white">
+            <ExternalLink size={18} />
           </a>
-          <a
-            href={url}
-            download
-            className="p-2 text-gray-300 hover:text-white transition-colors"
-            aria-label="Baixar comprovante"
-          >
-            <Download size={20} />
+          <a href={url} download
+            className="p-2.5 rounded-xl transition-all hover:bg-white/10 text-gray-400 hover:text-white">
+            <Download size={18} />
           </a>
-          <button
-            onClick={onFechar}
-            className="p-2 text-gray-300 hover:text-white transition-colors"
-            aria-label="Fechar"
-          >
-            <X size={22} />
+          <button onClick={onFechar}
+            className="p-2.5 rounded-xl transition-all hover:bg-white/10 text-gray-400 hover:text-white">
+            <X size={20} />
           </button>
         </div>
       </div>
 
-      {/* Imagem centralizada */}
-      <div
-        className="flex-1 flex items-center justify-center p-4 overflow-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <img
-          src={url}
-          alt={`Comprovante de ${lancamento.descricao}`}
-          className="max-w-full max-h-full object-contain rounded-lg"
-          onClick={(e) => e.stopPropagation()}
-        />
+      {/* Imagem */}
+      <div className="flex-1 flex items-center justify-center p-4 overflow-auto" onClick={(e) => e.stopPropagation()}>
+        <img src={url} alt={`Comprovante de ${lancamento.descricao}`}
+          className="max-w-full max-h-full object-contain rounded-xl animate-scale-in" />
       </div>
 
-      {/* Toque fora para fechar */}
-      <p className="text-center text-gray-600 text-xs pb-8">
-        Toque fora para fechar
-      </p>
+      <p className="text-center text-xs pb-8 text-gray-700">Toque fora para fechar</p>
     </div>
   )
 }

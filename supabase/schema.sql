@@ -31,3 +31,10 @@ alter table public.lancamentos disable row level security;
 -- Permissões para o anon key (acesso público controlado pelo app)
 grant select, insert, update, delete on public.lancamentos to anon;
 grant usage on schema public to anon;
+
+-- Política de acesso ao Storage (bucket: comprovantes)
+-- Execute após criar o bucket no Supabase Storage
+create policy "allow_anon_all" on storage.objects
+for all to anon
+using (bucket_id = 'comprovantes')
+with check (bucket_id = 'comprovantes');

@@ -14,30 +14,35 @@ export default function NavMes({ ano, mes, onChange }: NavMesProps) {
     const { ano: a, mes: m } = mesAnterior(ano, mes)
     onChange(a, m)
   }
-
   function seguinte() {
     const { ano: a, mes: m } = mesSeguinte(ano, mes)
     onChange(a, m)
   }
 
   return (
-    <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-100">
+    <div
+      className="flex items-center justify-between px-4 py-3"
+      style={{ borderBottom: '1px solid var(--border)' }}
+    >
       <button
         onClick={anterior}
-        className="p-2 rounded-full hover:bg-gray-100 active:bg-gray-200 transition-colors"
-        aria-label="Mês anterior"
+        className="w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-90"
+        style={{ background: 'var(--bg-card-hover)', color: 'var(--text-secondary)' }}
       >
-        <ChevronLeft size={20} className="text-gray-600" />
+        <ChevronLeft size={18} />
       </button>
-      <span className="font-semibold text-gray-800 capitalize text-base">
+      <span
+        className="font-semibold text-base capitalize"
+        style={{ color: 'var(--text-primary)' }}
+      >
         {nomeMes(mes, ano)}
       </span>
       <button
         onClick={seguinte}
-        className="p-2 rounded-full hover:bg-gray-100 active:bg-gray-200 transition-colors"
-        aria-label="Próximo mês"
+        className="w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-90"
+        style={{ background: 'var(--bg-card-hover)', color: 'var(--text-secondary)' }}
       >
-        <ChevronRight size={20} className="text-gray-600" />
+        <ChevronRight size={18} />
       </button>
     </div>
   )

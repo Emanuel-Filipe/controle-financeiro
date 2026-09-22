@@ -8,6 +8,17 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 // ─── Lançamentos ────────────────────────────────────────────────────────────
 
+export async function getLancamentoPorId(id: string): Promise<Lancamento> {
+  const { data, error } = await supabase
+    .from('lancamentos')
+    .select('*')
+    .eq('id', id)
+    .single()
+
+  if (error) throw error
+  return data
+}
+
 export async function getLancamentos(ano: number, mes: number): Promise<Lancamento[]> {
   const inicio = `${ano}-${String(mes).padStart(2, '0')}-01`
   // Calcula o último dia real do mês

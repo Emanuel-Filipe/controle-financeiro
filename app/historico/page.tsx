@@ -4,23 +4,18 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Search, SlidersHorizontal, X } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
-import { getLancamentos, deletarLancamento } from '@/lib/supabase'
+import { getLancamentos } from '@/lib/supabase'
 import { Lancamento, TipoLancamento, CategoriaLancamento, CATEGORIAS_DESPESA, CATEGORIAS_RECEITA } from '@/lib/types'
 import { formatarMoeda, mesAtual, nomeMes } from '@/lib/utils'
 import BottomNav from '@/components/BottomNav'
 import NavMes from '@/components/NavMes'
 import ItemLancamento from '@/components/ItemLancamento'
 
-type Filtro = {
-  tipo: TipoLancamento | 'Todos'
-  categoria: CategoriaLancamento | 'Todas'
-  busca: string
-}
+type Filtro = { tipo: TipoLancamento | 'Todos'; categoria: CategoriaLancamento | 'Todas'; busca: string }
 
 export default function HistoricoPage() {
   const { autenticado, carregando } = useAuth()
   const router = useRouter()
-
   const { ano: anoAtual, mes: mesAtualNum } = mesAtual()
   const [ano, setAno] = useState(anoAtual)
   const [mes, setMes] = useState(mesAtualNum)
@@ -28,182 +23,112 @@ export default function HistoricoPage() {
   const [buscando, setBuscando] = useState(true)
   const [erro, setErro] = useState('')
   const [mostrarFiltros, setMostrarFiltros] = useState(false)
-  const [filtro, setFiltro] = useState<Filtro>({
-    tipo: 'Todos',
-    categoria: 'Todas',
-    busca: '',
-  })
+  const [filtro, setFiltro] = useState<Filtro>({ tipo: 'Todos', categoria: 'Todas', busca: '' })
 
   useEffect(() => {
     if (!carregando && !autenticado) router.replace('/login')
   }, [autenticado, carregando, router])
 
   const buscarDados = useCallback(async () => {
-    setBuscando(true)
-    setErro('')
+    setBuscando(true); setErro('')
     try {
-      const dados = await getLancamentos(ano, mes)
-      setLancamentos(dados)
+      setLancamentos(await getLancamentos(ano, mes))
     } catch (e) {
-      console.error(e)
-      setErro('Erro ao carregar lançamentos.')
-    } finally {
-      setBuscando(false)
-    }
+      console.error(e); setErro('Erro ao carregar lançamentos.')
+    } finally { setBuscando(false) }
   }, [ano, mes])
 
-  useEffect(() => {
-    if (autenticado) buscarDados()
-  }, [autenticado, buscarDados])
+  useEffect(() => { if (autenticado) buscarDados() }, [autenticado, buscarDados])
 
   if (carregando || !autenticado) return null
 
-  async function handleDeletar(id: string) {
-    if (!confirm('Excluir este lançamento?')) return
-    try {
-      await deletarLancamento(id)
-      setLancamentos((prev) => prev.filter((l) => l.id !== id))
-    } catch (e) {
-      console.error(e)
-      alert('Erro ao excluir. Tente novamente.')
-    }
-  }
-
-  // Filtros aplicados
   const filtrados = lancamentos.filter((l) => {
     if (filtro.tipo !== 'Todos' && l.tipo !== filtro.tipo) return false
     if (filtro.categoria !== 'Todas' && l.categoria !== filtro.categoria) return false
-    if (
-      filtro.busca &&
-      !l.descricao.toLowerCase().includes(filtro.busca.toLowerCase())
-    )
-      return false
+    if (filtro.busca && !l.descricao.toLowerCase().includes(filtro.busca.toLowerCase())) return false
     return true
   })
 
-  // Totais dos filtrados
-  const totalReceitas = filtrados
-    .filter((l) => l.tipo === 'Receita')
-    .reduce((s, l) => s + l.valor, 0)
-  const totalDespesas = filtrados
-    .filter((l) => l.tipo === 'Despesa')
-    .reduce((s, l) => s + l.valor, 0)
+  const totalReceitas = filtrados.filter((l) => l.tipo === 'Receita').reduce((s, l) => s + l.valor, 0)
+  const totalDespesas = filtrados.filter((l) => l.tipo === 'Despesa').reduce((s, l) => s + l.valor, 0)
 
   const todasCategorias: (CategoriaLancamento | 'Todas')[] = [
-    'Todas',
-    ...CATEGORIAS_DESPESA,
+    'Todas', ...CATEGORIAS_DESPESA,
     ...CATEGORIAS_RECEITA.filter((c) => !CATEGORIAS_DESPESA.includes(c)),
   ]
 
-  const filtrosAtivos =
-    filtro.tipo !== 'Todos' || filtro.categoria !== 'Todas' || filtro.busca !== ''
+  const filtrosAtivos = filtro.tipo !== 'Todos' || filtro.categoria !== 'Todas' || filtro.busca !== ''
 
   return (
-    <div className="min-h-screen bg-slate-50 page-content">
+    <div className="min-h-screen page-content" style={{ background: 'var(--bg-base)' }}>
       {/* Header */}
-      <div className="bg-indigo-600 pt-12 pb-5 px-4">
-        <h1 className="text-white text-xl font-bold">Histórico</h1>
-        <p className="text-indigo-200 text-sm mt-0.5 capitalize">
-          {nomeMes(mes, ano)}
-        </p>
+      <div className="px-5 pt-14 pb-5" style={{ borderBottom: '1px solid var(--border)' }}>
+        <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>Histórico</h1>
+        <p className="text-sm mt-0.5 capitalize" style={{ color: 'var(--text-secondary)' }}>{nomeMes(mes, ano)}</p>
       </div>
 
-      {/* Navegação de mês */}
-      <NavMes
-        ano={ano}
-        mes={mes}
-        onChange={(a, m) => {
-          setAno(a)
-          setMes(m)
-        }}
-      />
+      <NavMes ano={ano} mes={mes} onChange={(a, m) => { setAno(a); setMes(m) }} />
 
-      {/* Barra de busca + filtro */}
-      <div className="px-4 pt-3 pb-2 bg-white border-b border-gray-100">
+      {/* Busca */}
+      <div className="px-4 pt-3 pb-2" style={{ borderBottom: '1px solid var(--border)' }}>
         <div className="flex items-center gap-2">
           <div className="relative flex-1">
-            <Search
-              size={16}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-            />
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
             <input
-              type="text"
-              value={filtro.busca}
+              type="text" value={filtro.busca}
               onChange={(e) => setFiltro((f) => ({ ...f, busca: e.target.value }))}
-              placeholder="Buscar descrição..."
-              className="w-full pl-9 pr-4 py-2.5 bg-gray-100 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              placeholder="Buscar..."
+              className="input-base pl-9 py-2.5 text-sm"
             />
           </div>
           <button
             onClick={() => setMostrarFiltros(!mostrarFiltros)}
-            className={`p-2.5 rounded-xl border transition-colors ${
-              filtrosAtivos
-                ? 'bg-indigo-100 border-indigo-300 text-indigo-600'
-                : 'bg-gray-100 border-gray-200 text-gray-500'
-            }`}
+            className="p-2.5 rounded-xl transition-all"
+            style={{
+              background: filtrosAtivos ? 'var(--accent-soft)' : 'var(--bg-card-hover)',
+              border: `1px solid ${filtrosAtivos ? 'var(--accent)' : 'var(--border)'}`,
+              color: filtrosAtivos ? 'var(--accent)' : 'var(--text-muted)',
+            }}
           >
             <SlidersHorizontal size={18} />
           </button>
         </div>
 
-        {/* Painel de filtros */}
         {mostrarFiltros && (
-          <div className="mt-3 space-y-3 pb-2">
-            {/* Tipo */}
+          <div className="mt-3 space-y-3 pb-1 animate-fade-up">
             <div>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                Tipo
-              </p>
+              <p className="label">Tipo</p>
               <div className="flex gap-2">
                 {(['Todos', 'Receita', 'Despesa'] as const).map((t) => (
-                  <button
-                    key={t}
-                    onClick={() => setFiltro((f) => ({ ...f, tipo: t }))}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                      filtro.tipo === t
-                        ? 'bg-indigo-600 text-white'
-                        : 'bg-gray-100 text-gray-600'
-                    }`}
-                  >
+                  <button key={t} onClick={() => setFiltro((f) => ({ ...f, tipo: t }))}
+                    className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                    style={filtro.tipo === t
+                      ? { background: 'var(--accent)', color: '#fff' }
+                      : { background: 'var(--bg-card-hover)', color: 'var(--text-muted)' }}>
                     {t}
                   </button>
                 ))}
               </div>
             </div>
-
-            {/* Categoria */}
             <div>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                Categoria
-              </p>
-              <div className="flex flex-wrap gap-2">
+              <p className="label">Categoria</p>
+              <div className="flex flex-wrap gap-1.5">
                 {todasCategorias.map((c) => (
-                  <button
-                    key={c}
-                    onClick={() =>
-                      setFiltro((f) => ({ ...f, categoria: c as CategoriaLancamento | 'Todas' }))
-                    }
-                    className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${
-                      filtro.categoria === c
-                        ? 'bg-indigo-600 text-white'
-                        : 'bg-gray-100 text-gray-600'
-                    }`}
-                  >
+                  <button key={c} onClick={() => setFiltro((f) => ({ ...f, categoria: c as CategoriaLancamento | 'Todas' }))}
+                    className="px-2.5 py-1 rounded-lg text-xs font-semibold transition-all"
+                    style={filtro.categoria === c
+                      ? { background: 'var(--accent)', color: '#fff' }
+                      : { background: 'var(--bg-card-hover)', color: 'var(--text-muted)' }}>
                     {c}
                   </button>
                 ))}
               </div>
             </div>
-
-            {/* Limpar filtros */}
             {filtrosAtivos && (
-              <button
-                onClick={() =>
-                  setFiltro({ tipo: 'Todos', categoria: 'Todas', busca: '' })
-                }
-                className="flex items-center gap-1.5 text-sm text-red-500 font-medium"
-              >
-                <X size={14} /> Limpar filtros
+              <button onClick={() => setFiltro({ tipo: 'Todos', categoria: 'Todas', busca: '' })}
+                className="flex items-center gap-1.5 text-xs font-semibold"
+                style={{ color: 'var(--red)' }}>
+                <X size={13} /> Limpar filtros
               </button>
             )}
           </div>
@@ -211,70 +136,51 @@ export default function HistoricoPage() {
       </div>
 
       <div className="px-4 pt-3 space-y-3">
-        {/* Resumo rápido */}
+        {/* Resumo */}
         {!buscando && filtrados.length > 0 && (
-          <div className="grid grid-cols-2 gap-2">
-            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-center">
-              <p className="text-xs text-emerald-600 font-medium uppercase tracking-wide">
-                Receitas
-              </p>
-              <p className="text-sm font-bold text-emerald-700 mt-0.5">
-                {formatarMoeda(totalReceitas)}
-              </p>
+          <div className="grid grid-cols-2 gap-2 animate-fade-up">
+            <div className="card p-3 text-center">
+              <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--green)' }}>Receitas</p>
+              <p className="text-sm font-bold mt-0.5" style={{ color: 'var(--green)' }}>{formatarMoeda(totalReceitas)}</p>
             </div>
-            <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-center">
-              <p className="text-xs text-red-500 font-medium uppercase tracking-wide">
-                Despesas
-              </p>
-              <p className="text-sm font-bold text-red-600 mt-0.5">
-                {formatarMoeda(totalDespesas)}
-              </p>
+            <div className="card p-3 text-center">
+              <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--red)' }}>Despesas</p>
+              <p className="text-sm font-bold mt-0.5" style={{ color: 'var(--red)' }}>{formatarMoeda(totalDespesas)}</p>
             </div>
           </div>
         )}
 
-        {/* Erro */}
-        {erro && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-600">
-            {erro}
-          </div>
-        )}
+        {erro && <div className="card p-3 text-sm" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>{erro}</div>}
 
-        {/* Carregando */}
         {buscando && (
-          <div className="flex justify-center py-12">
-            <div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+          <div className="space-y-2">
+            {[...Array(5)].map((_, i) => <div key={i} className="skeleton h-16" style={{ animationDelay: `${i * 80}ms` }} />)}
           </div>
         )}
 
-        {/* Lista */}
         {!buscando && (
           <>
-            <p className="text-xs text-gray-400 font-medium">
+            <p className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>
               {filtrados.length} lançamento{filtrados.length !== 1 ? 's' : ''}
             </p>
             <div className="space-y-2 pb-4">
-              {filtrados.map((l) => (
-                <ItemLancamento
-                  key={l.id}
-                  lancamento={l}
-                  onDeletar={handleDeletar}
-                />
+              {filtrados.map((l, i) => (
+                <div key={l.id} className="animate-fade-up" style={{ animationDelay: `${i * 40}ms` }}>
+                  <ItemLancamento lancamento={l} />
+                </div>
               ))}
             </div>
-
             {filtrados.length === 0 && !erro && (
-              <div className="flex flex-col items-center py-12 text-center">
-                <Search size={40} className="text-gray-300 mb-3" />
-                <p className="text-gray-500 font-medium">
-                  {filtrosAtivos ? 'Nenhum resultado para os filtros.' : 'Nenhum lançamento neste mês.'}
+              <div className="flex flex-col items-center py-16 text-center animate-fade-in">
+                <Search size={40} className="mb-3" style={{ color: 'var(--text-muted)' }} />
+                <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>
+                  {filtrosAtivos ? 'Nenhum resultado.' : 'Nenhum lançamento neste mês.'}
                 </p>
               </div>
             )}
           </>
         )}
       </div>
-
       <BottomNav />
     </div>
   )
