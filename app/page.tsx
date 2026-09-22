@@ -1,69 +1,179 @@
-import Image from "next/image";
+'use client'
 
-export default function Home() {
+import { useEffect, useState, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
+import { TrendingUp, TrendingDown, Wallet, ArrowUpRight } from 'lucide-react'
+import { useAuth } from '@/context/AuthContext'
+import { getLancamentos } from '@/lib/supabase'
+import { Lancamento, GastoCategoria, CORES_CATEGORIA } from '@/lib/types'
+import { formatarMoeda, mesAtual, nomeMes } from '@/lib/utils'
+import BottomNav from '@/components/BottomNav'
+import NavMes from '@/components/NavMes'
+import CardResumo from '@/components/CardResumo'
+import ItemLancamento from '@/components/ItemLancamento'
+import GraficoCategoria from '@/components/GraficoCategoria'
+
+export default function DashboardPage() {
+  const { autenticado, carregando } = useAuth()
+  const router = useRouter()
+
+  const { ano: anoAtual, mes: mesAtualNum } = mesAtual()
+  const [ano, setAno] = useState(anoAtual)
+  const [mes, setMes] = useState(mesAtualNum)
+  const [lancamentos, setLancamentos] = useState<Lancamento[]>([])
+  const [buscando, setBuscando] = useState(true)
+  const [erro, setErro] = useState('')
+
+  useEffect(() => {
+    if (!carregando && !autenticado) {
+      router.replace('/login')
+    }
+  }, [autenticado, carregando, router])
+
+  const buscarDados = useCallback(async () => {
+    setBuscando(true)
+    setErro('')
+    try {
+      const dados = await getLancamentos(ano, mes)
+      setLancamentos(dados)
+    } catch (e) {
+      console.error(e)
+      setErro('Erro ao carregar dados. Verifique a conexão.')
+    } finally {
+      setBuscando(false)
+    }
+  }, [ano, mes])
+
+  useEffect(() => {
+    if (autenticado) buscarDados()
+  }, [autenticado, buscarDados])
+
+  if (carregando || !autenticado) return null
+
+  // Cálculos do resumo
+  const receitas = lancamentos
+    .filter((l) => l.tipo === 'Receita')
+    .reduce((s, l) => s + l.valor, 0)
+
+  const despesas = lancamentos
+    .filter((l) => l.tipo === 'Despesa')
+    .reduce((s, l) => s + l.valor, 0)
+
+  const saldo = receitas - despesas
+
+  // Gastos por categoria
+  const porCategoria = lancamentos
+    .filter((l) => l.tipo === 'Despesa')
+    .reduce<Record<string, number>>((acc, l) => {
+      acc[l.categoria] = (acc[l.categoria] ?? 0) + l.valor
+      return acc
+    }, {})
+
+  const gastosCategoria: GastoCategoria[] = Object.entries(porCategoria)
+    .map(([categoria, total]) => ({
+      categoria: categoria as GastoCategoria['categoria'],
+      total,
+      cor: CORES_CATEGORIA[categoria] ?? '#94a3b8',
+    }))
+    .sort((a, b) => b.total - a.total)
+
+  // Últimos 5 lançamentos
+  const ultimos = lancamentos.slice(0, 5)
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <div className="min-h-screen bg-slate-50 page-content">
+      {/* Header */}
+      <div className="bg-indigo-600 pt-12 pb-6 px-4">
+        <p className="text-indigo-200 text-sm capitalize">{nomeMes(mes, ano)}</p>
+        <p className="text-white text-3xl font-bold mt-1">
+          {formatarMoeda(saldo)}
+        </p>
+        <p className="text-indigo-200 text-xs mt-1">Saldo do mês</p>
+      </div>
+
+      {/* Navegação de mês */}
+      <NavMes ano={ano} mes={mes} onChange={(a, m) => { setAno(a); setMes(m) }} />
+
+      <div className="px-4 pt-4 space-y-4">
+        {/* Cards receita/despesa */}
+        <div className="grid grid-cols-2 gap-3">
+          <CardResumo
+            titulo="Receitas"
+            valor={formatarMoeda(receitas)}
+            cor="verde"
+            icone={<TrendingUp size={16} />}
+          />
+          <CardResumo
+            titulo="Despesas"
+            valor={formatarMoeda(despesas)}
+            cor="vermelho"
+            icone={<TrendingDown size={16} />}
+          />
+        </div>
+
+        {/* Saldo */}
+        <CardResumo
+          titulo="Saldo do mês"
+          valor={formatarMoeda(saldo)}
+          cor={saldo >= 0 ? 'azul' : 'vermelho'}
+          icone={<Wallet size={16} />}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+
+        {/* Erro */}
+        {erro && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-600">
+            {erro}
+          </div>
+        )}
+
+        {/* Carregando */}
+        {buscando && (
+          <div className="flex justify-center py-8">
+            <div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+          </div>
+        )}
+
+        {/* Gráfico de categorias */}
+        {!buscando && gastosCategoria.length > 0 && (
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <h2 className="font-semibold text-gray-800 mb-4">Gastos por categoria</h2>
+            <GraficoCategoria dados={gastosCategoria} />
+          </div>
+        )}
+
+        {/* Últimos lançamentos */}
+        {!buscando && ultimos.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-semibold text-gray-800">Últimos lançamentos</h2>
+              <button
+                onClick={() => router.push('/historico')}
+                className="flex items-center gap-1 text-indigo-600 text-sm font-medium"
+              >
+                Ver todos <ArrowUpRight size={14} />
+              </button>
+            </div>
+            <div className="space-y-2">
+              {ultimos.map((l) => (
+                <ItemLancamento key={l.id} lancamento={l} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Estado vazio */}
+        {!buscando && lancamentos.length === 0 && !erro && (
+          <div className="flex flex-col items-center py-12 text-center">
+            <Wallet size={48} className="text-gray-300 mb-3" />
+            <p className="text-gray-500 font-medium">Nenhum lançamento</p>
+            <p className="text-gray-400 text-sm mt-1">
+              Toque em Lançar para adicionar o primeiro.
+            </p>
+          </div>
+        )}
+      </div>
+
+      <BottomNav />
     </div>
-  );
+  )
 }
