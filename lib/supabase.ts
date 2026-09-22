@@ -10,7 +10,9 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 export async function getLancamentos(ano: number, mes: number): Promise<Lancamento[]> {
   const inicio = `${ano}-${String(mes).padStart(2, '0')}-01`
-  const fim = `${ano}-${String(mes).padStart(2, '0')}-31`
+  // Calcula o último dia real do mês
+  const ultimoDia = new Date(ano, mes, 0).getDate()
+  const fim = `${ano}-${String(mes).padStart(2, '0')}-${String(ultimoDia).padStart(2, '0')}`
 
   const { data, error } = await supabase
     .from('lancamentos')
