@@ -124,3 +124,55 @@ export async function getLancamentosComComprovante(): Promise<import('./types').
   if (error) throw error
   return data ?? []
 }
+
+// ─── Lista de Desejos ─────────────────────────────────────────────────────────
+
+import type { ItemDesejo } from './types'
+
+export async function getListaDesejos(): Promise<ItemDesejo[]> {
+  const { data, error } = await supabase
+    .from('lista_desejos')
+    .select('*')
+    .order('concluido', { ascending: true })
+    .order('created_at', { ascending: false })
+
+  if (error) throw error
+  return data ?? []
+}
+
+export async function inserirDesejo(
+  item: Omit<ItemDesejo, 'id' | 'created_at'>
+): Promise<ItemDesejo> {
+  const { data, error } = await supabase
+    .from('lista_desejos')
+    .insert([item])
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+export async function atualizarDesejo(
+  id: string,
+  item: Partial<Omit<ItemDesejo, 'id' | 'created_at'>>
+): Promise<ItemDesejo> {
+  const { data, error } = await supabase
+    .from('lista_desejos')
+    .update(item)
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+export async function deletarDesejo(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('lista_desejos')
+    .delete()
+    .eq('id', id)
+
+  if (error) throw error
+}

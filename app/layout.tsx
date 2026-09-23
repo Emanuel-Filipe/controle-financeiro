@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { AuthProvider } from '@/context/AuthContext'
 import { ThemeProvider } from '@/context/ThemeContext'
+import ThemeToggle from '@/components/ThemeToggle'
 
 export const metadata: Metadata = {
   title: 'Controle Financeiro',
@@ -33,6 +34,7 @@ export default function RootLayout({
         <ThemeProvider>
           <AuthProvider>
             <div className="max-w-lg mx-auto min-h-screen" style={{ background: 'var(--bg-base)' }}>
+              <ThemeToggle />
               {children}
             </div>
           </AuthProvider>

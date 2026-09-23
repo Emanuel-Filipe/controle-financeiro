@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useState, useRef, FormEvent } from 'react'
+import { useEffect, useState, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
-import { CheckCircle2, AlertCircle, Camera, X, Image as ImageIcon } from 'lucide-react'
+import { CheckCircle2, AlertCircle } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { inserirLancamento, uploadComprovante } from '@/lib/supabase'
 import {
@@ -11,6 +11,8 @@ import {
 } from '@/lib/types'
 import { dataHoje } from '@/lib/utils'
 import BottomNav from '@/components/BottomNav'
+import InputValor from '@/components/InputValor'
+import SeletorComprovante from '@/components/SeletorComprovante'
 
 const FORM_VAZIO: LancamentoForm = {
   data: dataHoje(), descricao: '', tipo: 'Despesa', categoria: 'Alimentação',
@@ -63,7 +65,6 @@ export default function LancarPage() {
   const [erroMsg, setErroMsg] = useState('')
   const [arquivo, setArquivo] = useState<File | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
-  const inputFileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!carregando && !autenticado) router.replace('/login')
@@ -85,17 +86,21 @@ export default function LancarPage() {
     }))
   }
 
-  function handleArquivo(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
+  function handleArquivo(file: File) {
     setArquivo(file)
     if (preview) URL.revokeObjectURL(preview)
     setPreview(URL.createObjectURL(file))
   }
 
+  function handleRemoverArquivo() {
+    setArquivo(null)
+    if (preview) URL.revokeObjectURL(preview)
+    setPreview(null)
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    if (!form.descricao.trim() || !form.valor || parseFloat(form.valor) <= 0) return
+    if (!form.descricao.trim() || !form.valor || parseFloat(form.valor.replace(',', '.')) <= 0) return
     setEstado('enviando')
     setErroMsg('')
     try {
@@ -160,18 +165,11 @@ export default function LancarPage() {
         {/* Valor */}
         <div className="card p-4">
           <span className="label">Valor</span>
-          <div className="relative">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-lg" style={{ color: 'var(--text-muted)' }}>R$</span>
-            <input
-              type="number" inputMode="decimal" step="0.01" min="0.01"
-              value={form.valor}
-              onChange={(e) => set('valor', e.target.value)}
-              placeholder="0,00"
-              required
-              className="input-base pl-12 text-3xl font-bold"
-              style={{ color: corTipo, background: 'transparent', border: 'none', boxShadow: 'none', padding: '0.5rem 1rem 0.5rem 3rem' }}
-            />
-          </div>
+          <InputValor
+            valor={form.valor}
+            onChange={(v) => set('valor', v)}
+            cor={corTipo}
+          />
         </div>
 
         {/* Descrição + Data */}
@@ -227,28 +225,11 @@ export default function LancarPage() {
         {/* Comprovante */}
         <div className="card p-4">
           <span className="label">Comprovante <span className="normal-case font-normal opacity-60">(opcional)</span></span>
-          {preview ? (
-            <div className="relative mt-2">
-              <img src={preview} alt="Preview" className="w-full max-h-48 object-cover rounded-xl" />
-              <button type="button" onClick={() => { setArquivo(null); setPreview(null) }}
-                className="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center"
-                style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
-                <X size={14} style={{ color: 'var(--text-primary)' }} />
-              </button>
-            </div>
-          ) : (
-            <button type="button" onClick={() => inputFileRef.current?.click()}
-              className="mt-2 w-full py-6 rounded-xl flex flex-col items-center gap-2 border-2 border-dashed transition-all"
-              style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
-              <div className="flex gap-3">
-                <Camera size={20} />
-                <ImageIcon size={20} />
-              </div>
-              <span className="text-sm font-medium">Tirar foto ou galeria</span>
-            </button>
-          )}
-          <input ref={inputFileRef} type="file" accept="image/*" capture="environment"
-            onChange={handleArquivo} className="hidden" />
+          <SeletorComprovante
+            preview={preview}
+            onArquivo={handleArquivo}
+            onRemover={handleRemoverArquivo}
+          />
         </div>
 
         {/* Botão */}

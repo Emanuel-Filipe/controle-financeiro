@@ -2,21 +2,20 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, PlusCircle, List, Receipt, LogOut, Sun, Moon } from 'lucide-react'
+import { LayoutDashboard, PlusCircle, List, Receipt, ListChecks, LogOut } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
-import { useTheme } from '@/context/ThemeContext'
 
 const links = [
   { href: '/',             label: 'Início',       icon: LayoutDashboard },
   { href: '/lancar',       label: 'Lançar',       icon: PlusCircle },
   { href: '/historico',    label: 'Histórico',    icon: List },
   { href: '/comprovantes', label: 'Comprovantes', icon: Receipt },
+  { href: '/lista',        label: 'Lista',        icon: ListChecks },
 ]
 
 export default function BottomNav() {
   const pathname = usePathname()
   const { sair } = useAuth()
-  const { tema, toggleTema } = useTheme()
 
   return (
     <nav
@@ -52,20 +51,7 @@ export default function BottomNav() {
           )
         })}
 
-        {/* Toggle de tema */}
-        <button
-          onClick={toggleTema}
-          className="flex flex-col items-center gap-0.5 py-2.5 px-2 flex-1 transition-colors"
-          style={{ color: 'var(--text-muted)' }}
-          aria-label="Alternar tema"
-        >
-          {tema === 'dark'
-            ? <Sun size={22} strokeWidth={1.8} />
-            : <Moon size={22} strokeWidth={1.8} />
-          }
-          <span className="text-[10px] font-medium">Tema</span>
-        </button>
-
+        {/* Sair */}
         <button
           onClick={sair}
           className="flex flex-col items-center gap-0.5 py-2.5 px-2 flex-1 transition-colors"

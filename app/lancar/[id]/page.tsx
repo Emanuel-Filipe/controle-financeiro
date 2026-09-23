@@ -1,12 +1,14 @@
 'use client'
 
-import { useEffect, useState, useRef, FormEvent } from 'react'
+import { useEffect, useState, FormEvent } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { CheckCircle2, AlertCircle, Camera, X, Image as ImageIcon, ArrowLeft, Trash2 } from 'lucide-react'
+import { CheckCircle2, AlertCircle, ArrowLeft, Trash2 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { getLancamentoPorId, atualizarLancamento, deletarLancamento, uploadComprovante, deletarComprovante } from '@/lib/supabase'
 import { Lancamento, LancamentoForm, TipoLancamento, CATEGORIAS_DESPESA, CATEGORIAS_RECEITA, FORMAS_PAGAMENTO, STATUS_OPTIONS, CategoriaLancamento, FormaPagamento, StatusLancamento } from '@/lib/types'
 import BottomNav from '@/components/BottomNav'
+import InputValor from '@/components/InputValor'
+import SeletorComprovante from '@/components/SeletorComprovante'
 
 type EstadoEnvio = 'idle' | 'carregando' | 'enviando' | 'sucesso' | 'erro'
 
@@ -35,7 +37,6 @@ export default function EditarLancamentoPage() {
   const [novoArquivo, setNovoArquivo] = useState<File | null>(null)
   const [previewNovo, setPreviewNovo] = useState<string | null>(null)
   const [removerComprovante, setRemoverComprovante] = useState(false)
-  const inputFileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!carregando && !autenticado) router.replace('/login')
@@ -68,32 +69,38 @@ export default function EditarLancamentoPage() {
     setForm((f) => f ? { ...f, tipo, categoria: tipo === 'Despesa' ? 'Alimentação' : 'Salário', status: tipo === 'Despesa' ? 'Pago' : 'Recebido' } : f)
   }
 
-  function handleArquivo(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]; if (!file) return
+  function handleNovoArquivo(file: File) {
     setNovoArquivo(file)
     if (previewNovo) URL.revokeObjectURL(previewNovo)
     setPreviewNovo(URL.createObjectURL(file))
     setRemoverComprovante(false)
   }
 
+  function handleRemoverComprovante() {
+    setRemoverComprovante(true)
+    setNovoArquivo(null)
+    if (previewNovo) URL.revokeObjectURL(previewNovo)
+    setPreviewNovo(null)
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     if (!form || !lancamentoOriginal) return
-    if (!form.descricao.trim() || !form.valor || parseFloat(form.valor) <= 0) return
+    if (!form.descricao.trim() || !form.valor || parseFloat(form.valor.replace(',', '.')) <= 0) return
     setEstado('enviando'); setErroMsg('')
     try {
       let novaUrl: string | null | undefined = undefined
       if (novoArquivo) {
         if (lancamentoOriginal.comprovante_url) await deletarComprovante(lancamentoOriginal.comprovante_url).catch(() => {})
-        novaUrl = await uploadComprovante(novoArquivo, id)
-      } else if (removerComprovante && lancamentoOriginal.comprovante_url) {
+        novaUrl = await uploadComprovante(novoArquivo, id)      } else if (removerComprovante && lancamentoOriginal.comprovante_url) {
         await deletarComprovante(lancamentoOriginal.comprovante_url).catch(() => {})
         novaUrl = null
       }
       const payload: Partial<Omit<Lancamento, 'id' | 'created_at'>> = {
         data: form.data, descricao: form.descricao.trim(), tipo: form.tipo,
         categoria: form.categoria as CategoriaLancamento, forma_pagamento: form.forma_pagamento as FormaPagamento,
-        valor: parseFloat(form.valor.replace(',', '.')), status: form.status as StatusLancamento,
+        valor: parseFloat(form.valor.replace(',', '.')),
+        status: form.status as StatusLancamento,
         observacao: form.observacao.trim() || undefined,
       }
       if (novaUrl !== undefined) payload.comprovante_url = novaUrl ?? undefined
@@ -177,13 +184,11 @@ export default function EditarLancamentoPage() {
         {/* Valor */}
         <div className="card p-4">
           <span className="label">Valor</span>
-          <div className="relative">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-lg" style={{ color: 'var(--text-muted)' }}>R$</span>
-            <input type="number" inputMode="decimal" step="0.01" min="0.01" value={form.valor}
-              onChange={(e) => set('valor', e.target.value)} required
-              className="input-base text-3xl font-bold"
-              style={{ color: corTipo, background: 'transparent', border: 'none', boxShadow: 'none', padding: '0.5rem 1rem 0.5rem 3rem' }} />
-          </div>
+          <InputValor
+            valor={form.valor}
+            onChange={(v) => set('valor', v)}
+            cor={corTipo}
+          />
         </div>
 
         {/* Descrição + Data */}
@@ -231,31 +236,11 @@ export default function EditarLancamentoPage() {
         {/* Comprovante */}
         <div className="card p-4">
           <span className="label">Comprovante <span className="normal-case font-normal opacity-60">(opcional)</span></span>
-          {previewExibir ? (
-            <div className="relative mt-2">
-              <img src={previewExibir} alt="Comprovante" className="w-full max-h-48 object-cover rounded-xl" />
-              <button type="button" onClick={() => { setRemoverComprovante(true); setNovoArquivo(null); setPreviewNovo(null) }}
-                className="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center"
-                style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
-                <X size={14} style={{ color: 'var(--text-primary)' }} />
-              </button>
-              {!previewNovo && comprovanteAtual && (
-                <button type="button" onClick={() => inputFileRef.current?.click()}
-                  className="mt-2 text-xs font-semibold" style={{ color: 'var(--accent)' }}>
-                  Trocar imagem
-                </button>
-              )}
-              {previewNovo && <p className="text-xs mt-1 font-medium" style={{ color: 'var(--accent)' }}>Nova imagem selecionada</p>}
-            </div>
-          ) : (
-            <button type="button" onClick={() => inputFileRef.current?.click()}
-              className="mt-2 w-full py-6 rounded-xl flex flex-col items-center gap-2 border-2 border-dashed transition-all"
-              style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
-              <div className="flex gap-3"><Camera size={20} /><ImageIcon size={20} /></div>
-              <span className="text-sm font-medium">Tirar foto ou galeria</span>
-            </button>
-          )}
-          <input ref={inputFileRef} type="file" accept="image/*" capture="environment" onChange={handleArquivo} className="hidden" />
+          <SeletorComprovante
+            preview={previewExibir}
+            onArquivo={handleNovoArquivo}
+            onRemover={handleRemoverComprovante}
+          />
         </div>
 
         {/* Salvar */}

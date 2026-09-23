@@ -116,3 +116,31 @@ export const CORES_CATEGORIA: Record<string, string> = {
   Salário: '#22c55e',
   Outros: '#94a3b8',
 }
+
+// ─── Lista de Desejos ─────────────────────────────────────────────────────────
+
+export type Prioridade = 'Alta' | 'Normal' | 'Baixa'
+
+export interface ItemDesejo {
+  id: string
+  nome: string
+  valor_estimado?: number | null
+  prioridade: Prioridade
+  concluido: boolean
+  observacao?: string | null
+  created_at?: string
+}
+
+export const PRIORIDADES: Prioridade[] = ['Alta', 'Normal', 'Baixa']
+
+export const COR_PRIORIDADE: Record<Prioridade, string> = {
+  Alta:   'var(--red)',
+  Normal: 'var(--accent)',
+  Baixa:  'var(--text-muted)',
+}
+
+export const BG_PRIORIDADE: Record<Prioridade, string> = {
+  Alta:   'var(--red-soft)',
+  Normal: 'var(--accent-soft)',
+  Baixa:  'var(--bg-card-hover)',
+}

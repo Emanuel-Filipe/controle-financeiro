@@ -38,3 +38,19 @@ create policy "allow_anon_all" on storage.objects
 for all to anon
 using (bucket_id = 'comprovantes')
 with check (bucket_id = 'comprovantes');
+
+-- =====================================================
+-- Lista de Desejos
+-- Execute este bloco para adicionar a funcionalidade
+-- =====================================================
+create table if not exists public.lista_desejos (
+  id             uuid primary key default gen_random_uuid(),
+  nome           text not null,
+  valor_estimado numeric(12,2),
+  prioridade     text not null default 'Normal' check (prioridade in ('Alta', 'Normal', 'Baixa')),
+  concluido      boolean not null default false,
+  observacao     text,
+  created_at     timestamptz default now()
+);
+
+grant select, insert, update, delete on public.lista_desejos to anon;
